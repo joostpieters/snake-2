@@ -6,6 +6,17 @@ Version 1.0
 
 Version 1.1
 1. Complete simple version: the snake can eat things without considering body
+
+Version 1.2
+1. Change hard coded movement to the path along the BFS, but the snake will still bite itself
+2. init() -> init() + initAdjacency()
+
+Version 1.3
+1. Body(x, y) in snake ==> search(x, y). If use Body(x, y) in snake, it will only compare the address but not the x and y
+2. Ignoring the snake body in adjacency list in bfs() will prevent the snake from biting itself.
+3. The snake will not bite itself.  
+4. Delete move() and headMover()
+5. Next step: Wander
 @author: shaosh
 '''
 import curses
@@ -19,7 +30,7 @@ curses.init_pair(2, curses.COLOR_RED, 0)
 myscreen = 0
 count = 0
 snake = [Body(3, 1), Body(2, 1), Body(1, 1)]
-height = 20
+height = 10
 width = 60
 map = [[0 for col in range(width -1)] for row in range(height - 1)]
 queue = []
@@ -43,7 +54,6 @@ def init():
     global map
     global queue
     global bfsmap
-    global adjacency
     for row in range(1, height - 1):
         for col in range(1, width - 1):
             pos = Position(col, row)
@@ -52,7 +62,9 @@ def init():
             map[row][col].setY(row)        
             myscreen.addstr(row, col, pos.getBodypart())
     myscreen.refresh()
-    
+
+def initAdjacency():
+    global adjacency
     for row in range(1, height - 1):
         for col in range(1, width - 1):
             if row == 1 and col == 1:
@@ -88,11 +100,13 @@ def init():
                 adjacency[row][col].append(Position(col, row - 1))
                 adjacency[row][col].append(Position(col - 1, row))
                 adjacency[row][col].append(Position(col + 1, row))
+                
 def makeTarget():
+    global snake
     availalbe = False
     target = Target(random.randint(1, width - 2), random.randint(1, height - 2))
     while availalbe == False:
-        if (Body(target.getX(), target.getY()) in snake) == False:
+        if search(target.getX(), target.getY()) == False:
             availalbe = True
         else:
             target = Target(random.randint(1, width - 2), random.randint(1, height - 2))
@@ -107,11 +121,12 @@ def printSnake():
     myscreen.refresh()
     
 def bfs():
+    global snake
     global targetx
-    global targety
+    global targety  
     for row in range(1, height - 1):
         for col in range(1, width - 1):
-            bfsmap[row][col] = BfsElement("white", col, row, None, None, -1)
+            bfsmap[row][col] = BfsElement("white", col, row, None, None, None, None, -1)
     bfsmap[snake[0].getY()][snake[0].getX()].setColor("gray") 
     bfsmap[snake[0].getY()][snake[0].getX()].setDistance(0)
     queue = []
@@ -127,73 +142,49 @@ def bfs():
         for i in range(0, len(adjacency[u.getSelfY()][u.getSelfX()])):
             x = adjacency[u.getSelfY()][u.getSelfX()][i].getX()
             y = adjacency[u.getSelfY()][u.getSelfX()][i].getY()
-            if bfsmap[y][x].getColor() == "white":
-                bfsmap[y][x].setColor("gray")
-                bfsmap[y][x].setDistance(u.getDistance() + 1) 
-                bfsmap[y][x].setParentX(u.getSelfX())
-                bfsmap[y][x].setParentY(u.getSelfY())
-                queue.append(bfsmap[y][x])
-            u.setColor("black")
+            if search(x, y) == False:
+                if bfsmap[y][x].getColor() == "white":
+                    bfsmap[y][x].setColor("gray")
+                    bfsmap[y][x].setDistance(u.getDistance() + 1) 
+                    bfsmap[y][x].setParentX(u.getSelfX())
+                    bfsmap[y][x].setParentY(u.getSelfY())
+                    queue.append(bfsmap[y][x])
+        u.setColor("black")
+    x = targetx
+    y = targety   
+    while (x == snake[0].getX() and y == snake[0].getY()) == False:
+        bfsmap[bfsmap[y][x].getParentY()][bfsmap[y][x].getParentX()].setChildX(x)
+        bfsmap[bfsmap[y][x].getParentY()][bfsmap[y][x].getParentX()].setChildY(y)
+        tempY = y
+        tempX = x
+        y = bfsmap[tempY][tempX].getParentY()
+        x = bfsmap[tempY][tempX].getParentX()
         
-def getTarget():    
-    if targetx >= snake[0].getX() and targety >= snake[0].getY():
-        while targety > snake[0].getY():
-            move("d")
-        while targetx > snake[0].getX():
-            move("r")  
-    elif targetx <= snake[0].getX() and targety <= snake[0].getY():
-        while targety < snake[0].getY():
-            move("u")
-        while targetx < snake[0].getX():
-            move("l") 
-    elif targetx > snake[0].getX() and targety < snake[0].getY():
-        while targety < snake[0].getY():
-            move("u")
-        while targetx > snake[0].getX():
-            move("r")      
-    elif targetx < snake[0].getX() and targety > snake[0].getY():
-        while targety > snake[0].getY():
-            move("d")
-        while targetx < snake[0].getX():
-            move("l")
-
-def move(direction):
+def getTarget():   
     global count
-    for part in range(0, len(snake)):                                       
-        if part == 0:
-            previousX = snake[part].getX()
-            previousY = snake[part].getY()
-            headMove(direction)
-        elif part == 1:
-            previous = bodyMove(previousX, previousY, part)
+    global snake
+    while (snake[0].getX() == targetx and snake[0].getY() == targety) == False:
+        for part in range(0, len(snake)):                                       
+            if part == 0:
+                previousX = snake[part].getX()
+                previousY = snake[part].getY()
+                snake[part].setX(bfsmap[previousY][previousX].getChildX())
+                snake[part].setY(bfsmap[previousY][previousX].getChildY())
+            elif part == 1:
+                previous = bodyMove(previousX, previousY, part)
+            else:
+                previous = bodyMove(previous[0], previous[1], part)
+            myscreen.addstr(snake[part].getY(), snake[part].getX(), snake[part].getBodypart(), curses.color_pair(1))
+        if targetx == snake[0].getX() and targety == snake[0].getY():
+            snake.append(Body(previous[0], previous[1]))
+            count += 1
+            map[targety][targetx].setBodypart(" ")
+            myscreen.addstr(0, 12, str(count))
+            myscreen.addstr(previous[1], previous[0], Body.getBodypart(), curses.color_pair(1)) 
         else:
-            previous = bodyMove(previous[0], previous[1], part)
-        myscreen.addstr(snake[part].getY(), snake[part].getX(), snake[part].getBodypart(), curses.color_pair(1))
-    if targetx == snake[0].getX() and targety == snake[0].getY():
-        snake.append(Body(previous[0], previous[1]))
-        count += 1
-        map[targety][targetx].setBodypart(" ")
-        myscreen.addstr(0, 12, str(count))
-        myscreen.addstr(previous[1], previous[0], Body.getBodypart(), curses.color_pair(1)) 
-    else:
-        myscreen.addstr(previous[1], previous[0], " ") 
-    myscreen.refresh()
-#     myscreen.getch()
-    curses.delay_output(50)        
-    
-    
-        
-def headMove(direction):
-    if direction == "r":    
-        snake[0].setX(snake[0].getX() + 1) 
-    elif direction == "l":    
-        snake[0].setX(snake[0].getX() - 1) 
-    elif direction == "u":    
-        snake[0].setY(snake[0].getY() - 1)
-    elif direction == "d":
-        snake[0].setY(snake[0].getY() + 1)
-    else:
-        print("Invalid direction!")
+            myscreen.addstr(previous[1], previous[0], " ") 
+        myscreen.refresh()
+        curses.delay_output(50)   
         
 def bodyMove(previousX, previousY, part):
     tempX = snake[part].getX()
@@ -205,6 +196,12 @@ def bodyMove(previousX, previousY, part):
     previous = [previousX, previousY]
     return previous 
 
+def search(x, y):
+    for i in range(0, len(snake)):
+        if snake[i].getX() == x and snake[i].getY() == y:
+            return True
+    return False
+        
 def play():
     while count + 3 <= (height - 2) * (width - 2):
         makeTarget()
@@ -214,7 +211,8 @@ def play():
  
 def main():
     makeScreen() 
-    init()   
+    init()  
+    initAdjacency() 
     printSnake()
     play()
     myscreen.getch()
