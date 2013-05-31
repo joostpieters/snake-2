@@ -1,6 +1,6 @@
 '''
 Created on 2013-5-24
-
+Supporting classes and related functions
 @author: shaosh
 '''
 
@@ -36,22 +36,15 @@ class Body(Position):
         self.x = x
         self.y = y
     
-    def getBodypart():
+    def getTailpart():
         return Body.bodypart
-    getBodypart = staticmethod(getBodypart)
-#     def getX(self):
-#         return self.x
-#     
-#     def getY(self):
-#         return self.y
+    getTailpart = staticmethod(getTailpart)
     
+    def getBodypart(self):
+        return self.bodypart
     
-    
-#     def setX(self, x):
-#         self.x = x
-#     
-#     def setY(self, y):
-#         self.y = y 
+    def setBodypart(self, bodypart):
+        self.bodypart = bodypart
 
 class Target(Position):
     bodypart = "@"
@@ -61,12 +54,14 @@ class Target(Position):
         self.y = y
         
 class BfsElement:
-    def __init__(self, color, selfX, selfY, parentX, parentY, distance):
+    def __init__(self, color, selfX, selfY, parentX, parentY, childX, childY, distance):
         self.color = color
         self.selfX = selfX
         self.selfY = selfY
         self.parentX = parentX
         self.parentY = parentY
+        self.childX = childX
+        self.childY = childY
         self.distance = distance
         
     def setColor(self, color):
@@ -98,6 +93,18 @@ class BfsElement:
             
     def getParentY(self):
         return self.parentY
+    
+    def setChildX(self, x):
+        self.childX = x
+    
+    def getChildX(self):
+        return self.childX
+    
+    def setChildY(self, y):
+        self.childY = y
+            
+    def getChildY(self):
+        return self.childY
     
     def setDistance(self, distance):
         self.distance = distance
